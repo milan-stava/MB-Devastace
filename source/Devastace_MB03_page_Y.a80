@@ -1,0 +1,76 @@
+; AI1: Y selects the complete 8-bit MB03+ control byte for port #17.
+; Common monitor number editor #463C/#4640 provides reverse C cursor,
+; DELETE, decimal/hex conversion and returns the terminator in A,
+; numeric value in HL, count in (#4620).
+; Input field is at #F9.. and its first editable digit at #FA.
+        ORG #4C03
+page_command:
+        LD A,#F4               ; bottom row column 20
+        LD (#4185),A
+        LD HL,page_prompt
+        CALL #4258             ; Pag in the previous page indicator field
+        CALL #463C             ; clear edit count, then common number editor
+        CP #0D                 ; only ENTER confirms
+        RET NZ                 ; EDIT or any other terminator cancels
+        LD A,(#4620)           ; common editor's accepted digit count
+        OR A
+        RET Z                  ; empty input
+        LD A,H
+        OR A
+        RET NZ                 ; enforce 8-bit range (HL <= #00FF)
+        LD A,L
+        OUT (#17),A            ; full byte, all control bits preserved
+        LD (#5BDD),A           ; displayed current page/control byte
+        RET
+page_prompt:
+        DB 'Pa',#E7
+page_reloc_destination:
+        DW #5B00               ; AI1: two-byte configurable destination
+page_relocate:
+        LD SP,#5820             ; startup SP has not yet been reset by #47DA
+        LD HL,#47DA
+        LD (#402C),HL           ; make startup hook one-shot
+        LD HL,(page_reloc_destination)
+        LD BC,#A500            ; destination - #5B00 (two's complement)
+        ADD HL,BC
+        LD B,H
+        LD C,L                 ; BC is the relocation delta
+        LD A,B
+        OR C
+        JP Z,#47DA            ; default #5B00: no relocation
+        LD HL,page_reloc_fixups
+        LD A,11                ; seven external + four internal references
+page_reloc_loop:
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        INC HL
+        PUSH HL                ; retain next fixup record
+        EX DE,HL               ; HL -> 16-bit reference operand
+        LD E,(HL)
+        INC HL
+        LD D,(HL)
+        DEC HL
+        PUSH HL                ; retain operand address
+        EX DE,HL               ; HL = old reference to #5Bxx
+        ADD HL,BC              ; new address, arbitrary 16-bit destination
+        EX DE,HL
+        POP HL
+        LD (HL),E
+        INC HL
+        LD (HL),D
+        POP HL
+        DEC A
+        JR NZ,page_reloc_loop
+        LD HL,#5B00
+        LD DE,(page_reloc_destination)
+        LD BC,#0100
+        LDIR                   ; copy corrected code and tables as a whole
+        JP #47DA
+page_reloc_fixups:
+        DW #4194,#45B0,#45F9,#47C4,#47C7,#47E4,#4C20
+        DW #5BBC,#5BC7,#5BD1,#5BEF
+page_end:
+        ASSERT page_reloc_destination == #4C26
+        ASSERT page_end <= #4C8C
+; AI1 END

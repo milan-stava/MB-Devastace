@@ -1,0 +1,18 @@
+; Rebuildable hybrid source of Y and configurable helper-block relocation.
+; Original routines not yet decoded are included byte-for-byte from the
+; supplied original binary. The changed Y command is readable Z80 assembler
+; in Devastace_MB03_page_Y.a80.
+;
+; sjasmplus --raw=MBDEVY5.3 Devastace_MB03_full_rebuild.a80
+
+        ORG #4000
+        INCBIN "MBDEVMB03_original.bin",0,#002B
+        JP page_relocate           ; AI1: startup hook before #5Bxx use
+        INCBIN "MBDEVMB03_original.bin",#002E,#0BD5
+        ; AI1 START: source for the changed Y command
+        INCLUDE "Devastace_MB03_page_Y.a80"
+        ASSERT $ <= #4C8C
+        DS #4C8C-$,0
+        ; AI1 END: original shared monitor code resumes at #4C8C
+        INCBIN "MBDEVMB03_original.bin",#0C8C,#0F74
+        ASSERT $ == #5C00
