@@ -1,42 +1,46 @@
 # Devastace MB03+ 1.0
 
-První číslované vydání naší úpravy pracovní verze Devastace pro MB03+.
+The first numbered release of our MB03+ modification of the earlier working version of Devastace.
 
-## Použití
+![Devastace MB03+ 1.0](images/MB_Dev10_1.png)
 
-Soubor `runable/MBDEVMB03\_v1\_0.3` má 7168 bajtů a načítá se na adresu `#4000` (`#4000–#5BFF`). Nepotřebuje ZX ROM.
+## Usage
 
-* Klávesa **Y** mění číslo stránky SRAM ve spodní oblasti (0-16383), zvolené číslo je zobrazeno vpravo na spodním řádku. 
-* Číslo stránky zadávej v aktuálně zvolené soustavě (`0–255` nebo `00–FF`). Zapisuje se celý osmibitový řídicí bajt na port `#17` (desítkově 23).
-* **ENTER** potvrdí, **DELETE** smaže poslední číslici a **EDIT** volbu zruší. Prázdný vstup a číslo větší než 255 nic nezmění.
-* Původní kazetová funkce klávesy Y je tím nahrazena.
-* při výskoku z Deavstace (SS+Q) se automaticky nastránkuje zpět stránka 64 (ZX ROM), aby nedošlo k pádu systému
+The ready-to-load program is [runable/MB-Dev10.TAP](runable/MB-Dev10.TAP). The raw binary, [source/MBDEVY9.3](source/MBDEVY9.3), is 7,168 bytes long and loads at `#4000` (`#4000–#5BFF`). It does not require the ZX ROM. `Y9` is the development filename; the official release is **1.0**.
 
-## Volitelné přemístění pomocného bloku
+- Press **Y** to choose the SRAM page mapped into the bottom 16 KB (`#0000–#3FFF`). The current value is shown at the right end of the bottom row.
+- Enter the value in Devastace's selected number base: decimal `0–255` or hexadecimal `00–FF`. The complete eight-bit control value is written to port `#17` (decimal 23).
+- **ENTER** confirms, **DELETE** removes the last digit, and **EDIT** cancels. An empty entry or a value above 255 leaves the page unchanged.
+- The original Y command for reading a tape header is replaced by page selection.
+- On exit with **SS+Q**, Devastace automatically selects page 64 (`#40`, ZX ROM) to avoid a system crash.
 
-Výchozí pomocný blok je `#5B00–#5BFF`. Cíl lze nastavit v **čerstvé, ještě nespouštěné** binárce na souborových offsetech `#0C26–#0C27` (nižší bajt první). Výchozí bajty `00 5B` znamenají `#5B00`; `00 80` znamenají `#8000`. V paměti po načtení na `#4000` jsou to adresy `#4C26–#4C27`.
+## Optional relocation of the helper block
 
-Pro vytvoření samostatné kopie lze použít:
+By default, the 256-byte helper block occupies `#5B00–#5BFF`. Set a different destination in a **fresh copy of the binary that has not yet been run**. The file offsets are `#0C26–#0C27`, low byte first: the default bytes `00 5B` select `#5B00`, while `00 80` selects `#8000`. When the binary is loaded at `#4000`, the corresponding memory addresses are `#4C26–#4C27`.
 
-```text
-python source/configure\_devastace\_relocation.py --dest 0x8000
-```
-
-Pomocný blok musí ležet ve volné zapisovatelné RAM přístupné při všech používaných stránkách. Při prvním startu se blok automaticky zkopíruje a opraví odkazy; při dalších startech stejného obrazu se už nepřemisťuje.
-
-**Pro sledování původního obsahu `#5B00`:** před načtením uchovej jeho 256 bajtů jinde, zkopíruj *celých* 7168 bajtů Devastace na `#4000–#5BFF`, spusť první relokaci a až potom obsah `#5B00–#5BFF` vrať. Při každém dalším cyklu se vrať k čerstvé kopii binárky a konfiguruj ji znovu.
-
-## Zdroj a kontrola
-
-`source/Devastace\_MB03\_page\_Y.a80` obsahuje změny označené **AI1**. `source/Devastace\_MB03\_full\_rebuild.a80` skládá čitelnou upravenou část s původním obrazem (`source/MBDEVMB03\_original.bin`); ostatní původní rutiny zatím nejsou převedeny do čitelného assembleru. `source/build\_page\_patch.py` vytváří vydanou binárku bez závislosti na konkrétním assembleru.
+To create a separately configured copy, run the following commands from the repository root:
 
 ```text
-python source/build\_page\_patch.py
-python source/verify\_page\_patch.py
-python source/verify\_relocation.py
+cd source
+python configure_devastace_relocation.py --dest 0x8000
 ```
 
-SHA-256 vydané binárky: `b5be03ca690c3dc85a3893913ddad4b717af0be7d74292d171695160c09e3003`; velikost je stejná jako u pracovní verze, **7168 bajtů**. Číselný vstup a relokace prošly modelovými kontrolami strojového kódu; uživatel na skutečném MB03+ potvrdil volbu stránky a přítomnost přemístěného kódu na `#8000`.
+The target must be free, writable RAM that remains accessible with every page you intend to use. On its first start, Devastace copies the block and adjusts its references. Starting the **same already-run image** again does not relocate it again.
 
-Rozložení: kořen `README.md`, `runable/` = program, `source/` = zdroj a nástroje, `images/` = vlastní obrázky. Původní `README\_Devastace\_MB03\_Y\_relocace\_STRUCNE\_CZ.txt` zůstává nedotčený.
+**To inspect the original contents of `#5B00`:** save those 256 bytes elsewhere *before* loading Devastace, copy the **entire** 7,168-byte binary to `#4000–#5BFF`, let its first-start relocation run, and only then restore the saved contents to `#5B00–#5BFF`. For each subsequent cycle, configure and load another fresh copy of the binary.
 
+## Source and verification
+
+[source/Devastace_MB03_page_Y.a80](source/Devastace_MB03_page_Y.a80) marks the changes with **AI1**. [source/Devastace_MB03_full_rebuild.a80](source/Devastace_MB03_full_rebuild.a80) combines the readable modified code with the [original binary](source/MBDEVMB03_original.bin). The remaining original routines have not yet been converted into readable assembly. `build_page_patch.py` builds the released raw binary without depending on a specific assembler.
+
+From the `source` directory:
+
+```text
+python build_page_patch.py
+python verify_page_patch.py
+python verify_relocation.py
+```
+
+The raw binary is still **7,168 bytes**. Its SHA-256 is `b5be03ca690c3dc85a3893913ddad4b717af0be7d74292d171695160c09e3003`. The numeric input and relocation passed machine-code model checks. On a real MB03+, the user confirmed page selection and the relocated code at `#8000`.
+
+Repository layout: `runable/` holds the ready-to-load TAP file, `source/` holds the raw binary and sources, and `images/` holds screenshots. The original [short Czech guide](README_Devastace_MB03_Y_relocace_STRUCNE_CZ.txt) remains available.
